@@ -11,13 +11,33 @@ namespace DDG
    void Mesh :: indexVertices( void )
    // assigns a unique integer to the "index" member of each vertex in the range 0, ..., |V|-1
    {
-      // TODO
+      int i = 0;
+      for ( std::vector<Vertex>::iterator it = vertices.begin(); \
+         it != vertices.end(); it++ ) {
+         it->index = (i++); //std::cout<< it->index << std::endl;
+      }
    }
 
    void Mesh :: buildLaplacian( void )
    // build the cotan-Laplace matrix L
    {
-      // TODO
+      indexVertices();
+      
+      const int V = vertices.size();
+      // initialize a VxV matrix with zeroes
+      L = SparseMatrix(V,V); L.zero();
+
+      // loop through all half-edges
+      for ( std::vector<HalfEdge>::const_iterator it = halfedges.begin(); \
+         it != halfedges.end(); it++ ) {
+         double half_cot = it->cotan() / 2.;
+         int i = it->vertex->index;
+         int j = it->next->vertex->index;
+         L(i,i) -= half_cot;
+         L(j,j) -= half_cot;
+         L(i,j) += half_cot;
+         L(j,i) += half_cot;
+      }
    }
 
    void Mesh :: solveScalarPoissonProblem( void )
@@ -25,18 +45,76 @@ namespace DDG
    // determined by the value of Vertex::rho; the solution phi is
    // copied back to the vertex attribute Vertex::phi
    {
-      // TODO
+      buildLaplacian();
+      
+      const int V = vertices.size();
+      DenseMatrix phi_mat(V,1); phi_mat.zero();
+      DenseMatrix rho_mat(V,1); rho_mat.zero();
+
+      for ( std::vector<Vertex>::const_iterator it = vertices.begin(); \
+         it != vertices.end(); it++ ) {
+         rho_mat(it->index,0) = it->rho;
+         // std::cout << it->index << std::endl;
+      }
+
+      solve( L, phi_mat, rho_mat );
+
+      for ( std::vector<Vertex>::iterator it = vertices.begin(); \
+         it != vertices.end(); it++ ) {
+         it->phi = phi_mat(it->index,0);// / it->dualArea();
+      }
    }
    
    void Mesh :: buildFlowOperator( double h )
    // build the matrix A = I - hL where h is the time step and L is the Laplacian
    {
-      // TODO
+      indexVertices();
+
+      const int V = vertices.size();
+
+      // initialize a VxV matrix with zeroes
+      A = SparseMatrix(V,V); A.zero();
+
+      // fill the diagonal with 1
+      for ( int i = 0; i < V; i++ )
+         A(i,i) = 1.;
+
+      // loop through all half-edges
+      for ( std::vector<HalfEdge>::const_iterator it = halfedges.begin(); \
+         it != halfedges.end(); it++ ) {
+         double half_cot = it->cotan() / 2.;
+         int i = it->vertex->index;
+         int j = it->next->vertex->index;
+         A(i,i) -= (-h) * half_cot;
+         A(j,j) -= (-h) * half_cot;
+         A(i,j) += (-h) * half_cot;
+         A(j,i) += (-h) * half_cot;
+      }
    }
 
    void Mesh :: computeImplicitMeanCurvatureFlow( double h )
    {
-      // TODO
+      buildFlowOperator(h);
+
+      const int V = vertices.size();
+      DenseMatrix f_0(V,3); f_0.zero();
+      DenseMatrix f_h(V,3); f_h.zero();
+
+      for ( std::vector<Vertex>::const_iterator it = vertices.begin(); \
+         it != vertices.end(); it++ ) {
+         f_0(it->index,0) = it->position[0];
+         f_0(it->index,1) = it->position[1];
+         f_0(it->index,2) = it->position[2];
+      }
+
+      solve( A, f_h, f_0 );
+
+      for ( std::vector<Vertex>::iterator it = vertices.begin(); \
+         it != vertices.end(); it++ ) {
+         it->position[0] = f_h(it->index,0);
+         it->position[1] = f_h(it->index,1);
+         it->position[2] = f_h(it->index,2);
+      }
    }
 
    Mesh :: Mesh( void )

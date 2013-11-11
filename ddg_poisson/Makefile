@@ -28,7 +28,7 @@ DDG_OPENGL_LIBS       = -framework OpenGL -framework GLUT
 TARGET = ddg
 CC = g++
 LD = g++
-CFLAGS = -O3 -Wall -Werror -Wno-error=deprecated-declarations -ansi -pedantic  $(DDG_INCLUDE_PATH) -I./include
+CFLAGS = -O3 -Wall -Werror -Wno-error=c++11-extensions -Wno-error=deprecated-declarations -ansi -pedantic  $(DDG_INCLUDE_PATH) -I./include
 LFLAGS = -O3 -Wall -Werror -pedantic $(DDG_LIBRARY_PATH)
 LIBS = $(DDG_OPENGL_LIBS) $(DDG_SUITESPARSE_LIBS) $(DDG_BLAS_LIBS)
 OBJS = obj/Camera.o obj/DenseMatrix.o obj/Edge.o obj/Face.o obj/HalfEdge.o obj/Image.o obj/LinearContext.o obj/LinearEquation.o obj/LinearPolynomial.o obj/LinearSystem.o obj/Mesh.o obj/MeshIO.o obj/Quaternion.o obj/SparseMatrix.o obj/Variable.o obj/Vector.o obj/Vertex.o obj/Viewer.o obj/main.o

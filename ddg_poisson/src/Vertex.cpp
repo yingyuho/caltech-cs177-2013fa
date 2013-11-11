@@ -10,8 +10,16 @@ namespace DDG
    double Vertex::dualArea( void ) const
    // returns the area of the barycentric dual cell associated with this vertex
    {
-      // TODO
-     return 0;
+      double three_area = 0.;
+      HalfEdgeCIter he, heBegin;
+
+      he = heBegin = this->he;
+      do {
+         three_area += he->face->area();
+         he = he->flip->next;
+      } while ( he != heBegin );
+
+      return three_area / 3.;
    }
 
    Vector Vertex::normal( void ) const

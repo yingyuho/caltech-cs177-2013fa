@@ -6,8 +6,23 @@ namespace DDG
 {
    double Face::area( void ) const
    {
-      // TODO
-     return 0;
+      Vector four_area(0.,0.,0.);
+      HalfEdgeCIter he, heBegin;
+
+      he = heBegin = this->he;
+      do {
+         const Vector& vec1 = he->vertex->position;
+         const Vector& vec2 = he->next->vertex->position;
+
+         // 4 N_V = \int 2f \wedge df
+         four_area += cross( vec2+vec1, vec2-vec1 );
+
+         // go to the next half-edge of the same face
+         he = he->next;
+      }
+      while( he != heBegin );
+
+      return four_area.norm() / 4.;
    }
 
    Vector Face::normal( void ) const
