@@ -171,7 +171,6 @@ namespace DDG
    void Viewer :: mComputeFlow( void )
    {
       static double t = 0.0001;
-      // static double t = 1.;
 
       mesh.reload();
       mesh.computeImplicitMeanCurvatureFlow( t );
@@ -179,7 +178,6 @@ namespace DDG
       updateDisplayList();
 
       t *= 2.;
-      // t += 1;
    }
    
    void Viewer :: mResetMesh( void )
