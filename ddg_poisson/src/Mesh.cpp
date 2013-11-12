@@ -11,16 +11,16 @@ namespace DDG
    void Mesh :: indexVertices( void )
    // assigns a unique integer to the "index" member of each vertex in the range 0, ..., |V|-1
    {
-      int i = 0;
-      for ( std::vector<Vertex>::iterator it = vertices.begin(); \
-         it != vertices.end(); it++ ) {
-         it->index = (i++); //std::cout<< it->index << std::endl;
+      for ( int i = 0; i < vertices.size(); i++ ) {
+         vertices[i].index = i;
       }
    }
 
    void Mesh :: buildLaplacian( void )
    // build the cotan-Laplace matrix L
+   // L(0-form) = 2-form
    {
+      // index again anyway for safety c.f. buildFlowOperator(double)
       indexVertices();
       
       const int V = vertices.size();
@@ -48,17 +48,21 @@ namespace DDG
       buildLaplacian();
       
       const int V = vertices.size();
-      DenseMatrix phi_mat(V,1); phi_mat.zero();
+      // rho is actually density integrated over dual areas of vertices
+      // so it consists of 2-forms
       DenseMatrix rho_mat(V,1); rho_mat.zero();
+      // phi is 0-form scalar potential
+      DenseMatrix phi_mat(V,1); phi_mat.zero();
 
+      // load masses into matrix
       for ( std::vector<Vertex>::const_iterator it = vertices.begin(); \
          it != vertices.end(); it++ ) {
          rho_mat(it->index,0) = it->rho;
-         // std::cout << it->index << std::endl;
       }
 
       solve( L, phi_mat, rho_mat );
 
+      // unload potential from matrix
       for ( std::vector<Vertex>::iterator it = vertices.begin(); \
          it != vertices.end(); it++ ) {
          it->phi = phi_mat(it->index,0);// / it->dualArea();
@@ -67,7 +71,9 @@ namespace DDG
    
    void Mesh :: buildFlowOperator( double h )
    // build the matrix A = I - hL where h is the time step and L is the Laplacian
+   // A(0-form) = 0-form so take the dual of the result of cotan-Laplacian
    {
+      // index again because mesh is reloaded by Viewer::mComputeFlow()
       indexVertices();
 
       const int V = vertices.size();
@@ -79,16 +85,17 @@ namespace DDG
       for ( int i = 0; i < V; i++ )
          A(i,i) = 1.;
 
-      // loop through all half-edges
+      // loop through all half-edges to add (-h)L
       for ( std::vector<HalfEdge>::const_iterator it = halfedges.begin(); \
          it != halfedges.end(); it++ ) {
          double half_cot = it->cotan() / 2.;
          int i = it->vertex->index;
          int j = it->next->vertex->index;
-         A(i,i) -= (-h) * half_cot;
-         A(j,j) -= (-h) * half_cot;
-         A(i,j) += (-h) * half_cot;
-         A(j,i) += (-h) * half_cot;
+         // 1 / dualArea() converts 2-forms to 0-forms
+         A(i,i) -= (-h) * half_cot / vertices[i].dualArea();
+         A(j,j) -= (-h) * half_cot / vertices[j].dualArea();
+         A(i,j) += (-h) * half_cot / vertices[i].dualArea();
+         A(j,i) += (-h) * half_cot / vertices[j].dualArea();
       }
    }
 
@@ -100,6 +107,7 @@ namespace DDG
       DenseMatrix f_0(V,3); f_0.zero();
       DenseMatrix f_h(V,3); f_h.zero();
 
+      // load current coordinates
       for ( std::vector<Vertex>::const_iterator it = vertices.begin(); \
          it != vertices.end(); it++ ) {
          f_0(it->index,0) = it->position[0];
@@ -109,6 +117,7 @@ namespace DDG
 
       solve( A, f_h, f_0 );
 
+      // unload new coordinates
       for ( std::vector<Vertex>::iterator it = vertices.begin(); \
          it != vertices.end(); it++ ) {
          it->position[0] = f_h(it->index,0);
