@@ -550,6 +550,55 @@ namespace DDG
    void Viewer :: drawSelectedVertices( void )
    {
       shader.disable();
+
+      glPushAttrib( GL_ALL_ATTRIB_BITS );
+
+      GLfloat  diffuse[4] = { 0.0, 0.0, 1.0, 1.0 };
+      GLfloat specular[4] = { 1.0, 1.0, 1.0, 1.0 };
+      GLfloat  ambient[4] = { 0.0, 0.0, 0.0, 1.0 };
+      
+      glMaterialfv( GL_FRONT_AND_BACK, GL_DIFFUSE,   diffuse  );
+      glMaterialfv( GL_FRONT_AND_BACK, GL_SPECULAR,  specular );
+      glMaterialfv( GL_FRONT_AND_BACK, GL_AMBIENT,   ambient  );
+      glMaterialf ( GL_FRONT_AND_BACK, GL_SHININESS, 16.      );
+
+      for( VertexCIter v = mesh.vertices.begin();
+          v != mesh.vertices.end();
+          v ++ )
+      {
+         if( v->tag ) 
+         {
+            double radius = v->isIsolated() ? 0.02 : 100;
+
+            if ( not v->isIsolated() )
+            {
+               HalfEdgeIter he = v->he;
+               do
+               {
+                  double len = render3D ? \
+                     ( he->vertex->position - he->flip->vertex->position ).norm() : \
+                     ( he->vertex->texture - he->flip->vertex->texture ).norm();
+
+                  if ( radius > len ) radius = len;
+                  he = he->flip->next;
+               } while ( he != v->he );
+
+               radius *= 0.5;
+            }
+
+            const double * vecPtr = render3D ? &v->position[0] : &v->texture[0];
+
+            glMatrixMode( GL_MODELVIEW );
+            glPushMatrix();
+            glTranslatef( vecPtr[0], vecPtr[1], vecPtr[2] );
+            glutSolidSphere( radius, 16, 16 );
+            glPopMatrix();
+         }
+      }
+
+      glPopAttrib();
+
+      /*shader.disable();
       glPushAttrib( GL_ALL_ATTRIB_BITS );
 
       glEnable(GL_COLOR_MATERIAL);
@@ -577,7 +626,7 @@ namespace DDG
       }
       glEnd();
       
-      glPopAttrib();
+      glPopAttrib();*/
    }
 
    void Viewer :: pickVertex(int x, int y)

@@ -103,6 +103,7 @@ namespace DDG
       
       static Shader shader;
       // shader used to determine appearance of surface
+      
    };
 
    // methods to viz quasi conformal error
