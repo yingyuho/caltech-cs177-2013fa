@@ -3,10 +3,10 @@
 # Specify library locations here (add or remove "#" marks to comment/uncomment lines for your platform)
 
 # Mac OS X
-DDG_INCLUDE_PATH      = 
-DDG_LIBRARY_PATH      = 
+DDG_INCLUDE_PATH      = -I/usr/local/opt/metis4/include
+DDG_LIBRARY_PATH      = -L/usr/local/opt/metis4/lib
 DDG_BLAS_LIBS         = -framework Accelerate
-DDG_SUITESPARSE_LIBS  = -lspqr -lmetis -lcholmod -lcolamd -lccolamd -lcamd -lamd -lm -lsuitesparseconfig
+DDG_SUITESPARSE_LIBS  = -ltbb -lspqr -lmetis -lcholmod -lcolamd -lccolamd -lcamd -lamd -lm -lsuitesparseconfig
 DDG_OPENGL_LIBS       = -framework OpenGL -framework GLUT
 
 # # Linux
