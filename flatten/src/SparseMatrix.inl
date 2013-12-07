@@ -21,6 +21,7 @@ namespace DDG
 
    const int maxEigIter = 20;
    // number of iterations used to solve eigenvalue problems
+   const double maxEigRes = 1;
 
    template <class T>
    SparseMatrix<T> :: SparseMatrix( int m_, int n_ )
@@ -553,11 +554,15 @@ namespace DDG
    // A must be symmetric; x is used as an initial guess
    {
       int t0 = clock();
+      // initialize y to have the same dimension as x
+      DenseMatrix<T> y(x);
       // fixed numbr of iterations for simplicity
       for( int iter = 0; iter < maxEigIter; iter++ )
       {
-	// TODO
-	if( ignoreConstantVector ) { /* make sure no constant component in your iterate */ }
+         solve(A, y, x);
+	      if( ignoreConstantVector ) { y.removeMean(); }
+         y.normalize();
+         x = y;
       }
       int t1 = clock();
 
@@ -572,17 +577,20 @@ namespace DDG
    // solves A x = lambda B x for the smallest nonzero generalized eigenvalue lambda
    // A and B must be symmetric; x is used as an initial guess
    {
-      // TODO use a symmetric matrix decomposition instead of QR
-
       int t0 = clock();
 
-      // TODO: in this version B gives the norm; use it both for
-      // projecting out the constant component and for normalizing the
-      // iterate
+      // initialize y to have the same dimension as x
+      DenseMatrix<T> y(x);
+
       for( int iter = 0; iter < maxEigIter; iter++ )
       {
-	// if there is a B matrix on the rhs make sure it plays its role in the iteration
+         x = B * x;
+         x.removeMean();
+         solveSymmetric(A, y, x);
+         y /= sqrt((y.transpose() * (B * y)).norm());
+         x = y;
       }
+
       int t1 = clock();
 
       cout << "[eig] time: " << seconds( t0, t1 ) << "s" << "\n";
@@ -597,12 +605,20 @@ namespace DDG
    // A must be positive (semi-)definite; x is used as an initial guess
    {
       int t0 = clock();
-      // TODO for a much faster version create a SparseFactor from A
+
+      DenseMatrix<T> y(x);
+
+      SparseFactor<T> L;
+      L.build(A);
+
       for( int iter = 0; iter < maxEigIter; iter++ )
       {
-	// use backsolvePositiveDefinite() instead of solve()
-	if( ignoreConstantVector ){ /* project out constant vector */ }
+         backsolvePositiveDefinite(L, y, x);
+         if( ignoreConstantVector ) { y.removeMean(); }
+         y.normalize();
+         x = y;
       }
+
       int t1 = clock();
 
       cout << "[eig] time: " << seconds( t0, t1 ) << "s" << "\n";
@@ -618,12 +634,18 @@ namespace DDG
    {
       int t0 = clock();
 
-      // TODO same thing as above but this time with an inner product given by B
+      DenseMatrix<T> y(x);
+
+      SparseFactor<T> L;
+      L.build(A);
+
       for( int iter = 0; iter < maxEigIter; iter++ )
       {
-	// backsolvePositiveDefinite();
-	// project out constant (wrt to B) part
-	// normalize using the norm given by B
+         x = B * x;
+         x.removeMean();
+         backsolvePositiveDefinite(L, y, x);
+         y /= (y.transpose() * (B * y)).norm();
+         x = y;
       }
       int t1 = clock();
 
@@ -645,18 +667,26 @@ namespace DDG
                     const  DenseMatrix<T>& x )
    // returns the max residual of the eigenvalue problem A x = lambda x relative to the norm of the solution
    {
-     // TODO
-     return 0;
+      DenseMatrix<T> y(x);
+      y.normalize();
+      Complex lambda = (y.transpose() * (A * y))(0,0);
+      // std::cout << lambda << "\n";
+      // Res(A,y) := Ay - (y^T A y) y
+      return (A * y - lambda * y).norm();
    }
 
    template <class T>
    double residual( const SparseMatrix<T>& A,
                     const SparseMatrix<T>& B,
                     const  DenseMatrix<T>& x )
-   // returns the max residual of the generalized eigenvalue problem A x = lambda x relative to the norm of the solution
+   // returns the max residual of the generalized eigenvalue problem A x = lambda B x relative to the norm of the solution
    {
-     // TODO
-     return 0;
+      DenseMatrix<T> y(x);
+      // normalize y w.r.t. B
+      y /= sqrt((y.transpose() * (B * y)).norm());
+      Complex lambda = (y.transpose() * (A * y))(0,0);
+      // Res(A,B,y) := Ay - (y^T A y) B y
+      return (A * y - lambda * (B * y)).norm();
    }
 
 

@@ -82,6 +82,8 @@ namespace DDG
       double area( void ) const;
       // returns total mesh area
       
+      double area2D( void ) const;
+
       double meanEdgeLength( void  ) const;
       // returns mean edge lenght
 

@@ -3,10 +3,10 @@
 # Specify library locations here (add or remove "#" marks to comment/uncomment lines for your platform)
 
 # Mac OS X
-DDG_INCLUDE_PATH      = -I/usr/local/include
-DDG_LIBRARY_PATH      = -L/usr/local/lib
+DDG_INCLUDE_PATH      = -I/usr/local/include -I/usr/local/opt/metis4/include
+DDG_LIBRARY_PATH      = -L/usr/local/lib -L/usr/local/opt/metis4/lib
 DDG_BLAS_LIBS         = -framework Accelerate
-DDG_SUITESPARSE_LIBS  = -lspqr -lumfpack -lcholmod -lmetis -lcolamd -lccolamd -lcamd -lamd -lm -lsuitesparseconfig
+DDG_SUITESPARSE_LIBS  = -ltbb -lspqr -lumfpack -lcholmod -lmetis -lcolamd -lccolamd -lcamd -lamd -lm -lsuitesparseconfig
 DDG_OPENGL_LIBS       = -framework OpenGL -framework GLUT
 
 # # Linux
@@ -28,8 +28,8 @@ DDG_OPENGL_LIBS       = -framework OpenGL -framework GLUT
 TARGET = flatten
 CC = g++
 LD = g++
-CFLAGS = -O3 -Wall -Werror -Wno-error=deprecated-declarations -Wno-error=constant-logical-operand -ansi -pedantic  $(DDG_INCLUDE_PATH) -I./include -I./src
-LFLAGS = -O3 -Wall -Werror -pedantic $(DDG_LIBRARY_PATH)
+CFLAGS = -O0 -Wall -Werror -Wno-error=deprecated-declarations -Wno-error=constant-logical-operand -ansi -pedantic  $(DDG_INCLUDE_PATH) -I./include -I./src
+LFLAGS = -O0 -Wall -Werror -pedantic $(DDG_LIBRARY_PATH)
 LIBS = $(DDG_OPENGL_LIBS) $(DDG_SUITESPARSE_LIBS) $(DDG_BLAS_LIBS)
 
 ########################################################################################

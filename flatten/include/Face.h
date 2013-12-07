@@ -31,6 +31,8 @@ namespace DDG
       
       double area( void ) const;
       // returns the triangle area
+
+      double area2D( void ) const;
       
       Vector normal( void ) const;
       // returns the unit normal associated with this face; normal

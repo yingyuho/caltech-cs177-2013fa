@@ -175,6 +175,18 @@ namespace DDG
       return sum;
    }
    
+   double Mesh::area2D( void ) const
+   {
+      double sum = 0.0;
+      for( FaceCIter f = faces.begin();
+          f != faces.end();
+          f ++ )
+      {
+         sum += f->area2D();
+      }
+      return sum;
+   }
+
    double Mesh::meanEdgeLength( void  ) const
    {
       double sum = 0;

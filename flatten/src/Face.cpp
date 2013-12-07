@@ -12,6 +12,14 @@ namespace DDG
       return cross( p1-p0, p2-p0 ).norm() / 2.;
    }
 
+   double Face::area2D( void ) const
+   {
+      Vector p0 = he->vertex->texture;
+      Vector p1 = he->next->vertex->texture;
+      Vector p2 = he->next->next->vertex->texture;
+      return cross( p1-p0, p2-p0 ).norm() / 2.;
+   }
+
    Vector Face::normal( void ) const
    {
       Vector p0 = he->vertex->position;
