@@ -28,7 +28,7 @@ DDG_OPENGL_LIBS       = -framework OpenGL -framework GLUT
 TARGET = flatten
 CC = g++
 LD = g++
-CFLAGS = -O0 -Wall -Werror -Wno-error=deprecated-declarations -Wno-error=constant-logical-operand -ansi -pedantic  $(DDG_INCLUDE_PATH) -I./include -I./src
+CFLAGS = -O0 -Wall -Werror -Wno-deprecated-declarations -Wno-error=deprecated-declarations -Wno-error=constant-logical-operand -ansi -pedantic  $(DDG_INCLUDE_PATH) -I./include -I./src
 LFLAGS = -O0 -Wall -Werror -pedantic $(DDG_LIBRARY_PATH)
 LIBS = $(DDG_OPENGL_LIBS) $(DDG_SUITESPARSE_LIBS) $(DDG_BLAS_LIBS)
 

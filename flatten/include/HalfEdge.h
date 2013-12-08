@@ -46,6 +46,10 @@ namespace DDG
       Vector rotatedEdge( void ) const;
       // returns oriented edge vector rotated by PI/2 around face normal
       // if onBoundary, then return nil      
+
+      double connection;
+
+      HalfEdge() : connection(0.) {}
    };
 }
 

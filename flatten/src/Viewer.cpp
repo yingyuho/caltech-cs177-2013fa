@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <algorithm>
 using namespace std;
 
 #include "Viewer.h"
@@ -19,6 +20,8 @@ namespace DDG
    int Viewer::windowSize[2] = { 512, 512 };
    Camera Viewer::camera;
    Shader Viewer::shader;
+   bool Viewer::renderTaggedVertices = true;
+   bool Viewer::renderVectorField = false;
    bool Viewer::renderWireframe = false;
    bool Viewer::render3D = false;
    bool Viewer::renderQuasiConformal = false;
@@ -58,6 +61,10 @@ namespace DDG
       glutAddMenuEntry( "[f] Wireframe",  menuWireframe    );
       glutAddMenuEntry( "[s] Switch 2D/3D",  menuRender3D  );
       glutAddMenuEntry( "[q] Quasi Conformal Error",  menuQuasiConformal );
+      glutAddMenuEntry( "[t] Tagged Vertices", menuTaggedVertices );
+      glutAddMenuEntry( "[v] Vector Field", menuVectorField );
+      glutAddMenuEntry( "([) Increase Winding Number",  menuIncWinding );
+      glutAddMenuEntry( "(]) Decrease Winding Number",  menuDecWinding );
       glutAddMenuEntry( "[↑] Zoom In",    menuZoomIn       );
       glutAddMenuEntry( "[↓] Zoom Out",   menuZoomOut      );
       
@@ -109,17 +116,29 @@ namespace DDG
          case( menuQuasiConformal ):
             mQuasiConformal();
             break;
+         case( menuVectorField ):
+            mVectorField();
+            break;
          case( menuRender3D ):
             mRender3D();
             break;
          case( menuWireframe ):
             mWireframe();
             break;
+         case( menuTaggedVertices ):
+            mTaggedVertices();
+            break;
          case( menuZoomIn ):
             mZoomIn();
             break;
          case( menuZoomOut ):
             mZoomOut();
+            break;
+         case( menuIncWinding ):
+            mIncWinding();
+            break;
+         case( menuDecWinding ):
+            mDecWinding();
             break;
          default:
             break;
@@ -142,8 +161,20 @@ namespace DDG
          case 'w':
             mWriteMesh();
             break;
+         case 'v':
+            mVectorField();
+            break;
          case 'r':
             mResetMesh();
+            break;
+         case 't':
+            mTaggedVertices();
+            break;
+         case '[':
+            mIncWinding();
+            break;
+         case ']':
+            mDecWinding();
             break;
          case '\\':
             mScreenshot();
@@ -179,8 +210,10 @@ namespace DDG
 
    void Viewer :: mouse( int button, int state, int x, int y )
    {
-      if( ( glutGetModifiers() & GLUT_ACTIVE_SHIFT) and state == GLUT_UP )
+      if( ( glutGetModifiers() & GLUT_ACTIVE_SHIFT ) and state == GLUT_UP )
          pickVertex(x, y);
+      else if( ( glutGetModifiers() & GLUT_ACTIVE_CTRL ) and state == GLUT_UP )
+         hlVertex(x, y);
       else
          camera.mouse( button, state, x, y );
    }
@@ -228,6 +261,7 @@ namespace DDG
    {
       Application app;
       app.run(mesh);
+      renderVectorField = true;
       updateDisplayList();
    }
    
@@ -260,6 +294,18 @@ namespace DDG
       updateDisplayList();
    }
    
+   void Viewer :: mVectorField( void )
+   {
+      renderVectorField = ! renderVectorField;
+      updateDisplayList();
+   }
+
+   void Viewer :: mTaggedVertices( void )
+   {
+      renderTaggedVertices = ! renderTaggedVertices;
+      updateDisplayList();
+   }
+
    void Viewer :: mQuasiConformal( void )
    {
       renderQuasiConformal = !renderQuasiConformal;
@@ -395,24 +441,33 @@ namespace DDG
 
       glEnable( GL_POLYGON_OFFSET_FILL );
       glPolygonOffset( 1., 1. );
-      drawPolygons();
+      drawTriangles();
       glDisable( GL_POLYGON_OFFSET_FILL );
+
+      if( renderVectorField ) drawVectorField();
       
       if( renderWireframe ) drawWireframe();
       
       drawIsolatedVertices();
       
-      drawSelectedVertices();
+      if( renderTaggedVertices ) drawSelectedVertices();
       
       glPopAttrib();
    }
    
    void Viewer :: drawPolygons( void )
    {
-      if( not renderQuasiConformal )
+      /*if( not renderQuasiConformal )
       {
          glColor3d( 1., .5, .25 );
-      }
+      }*/
+
+      double plainColor[3] = { 1., .5, .25 };
+      double normal2D[3] = { 0., 0., 1. };
+
+      glEnableClientState(GL_VERTEX_ARRAY);
+      glEnableClientState(GL_NORMAL_ARRAY);
+      glEnableClientState(GL_COLOR_ARRAY);
 
       for( FaceCIter f  = mesh.faces.begin();
           f != mesh.faces.end();
@@ -420,7 +475,47 @@ namespace DDG
       {
          if( f->isBoundary() ) continue;
       
-         if( renderQuasiConformal )
+         int V = 0;
+         HalfEdgeCIter he = f->he;
+         do { V++; he = he->next; } while( he != f->he );
+
+         GLfloat * positions = new GLfloat[3*V];
+         GLfloat * normals   = new GLfloat[3*V];
+         GLfloat * colors    = new GLfloat[3*V];
+
+         double qcValue = faceQCDistortion( f );
+         Vector qcColorVec = qcColor( qcValue );
+
+         int offset = 0;
+         he = f->he;
+         do
+         {
+            const double * ptr;
+
+            ptr = renderQuasiConformal ? &qcColorVec[0] : plainColor;
+            std::copy(ptr, ptr + 3, colors + offset);
+
+            ptr = render3D ? &he->vertex->normal()[0] : normal2D;
+            std::copy(ptr, ptr + 3, normals + offset);
+
+            ptr = render3D ? &he->vertex->position[0] : &he->vertex->texture[0];
+            std::copy(ptr, ptr + 3, positions + offset);
+            
+            offset += 3;
+            he = he->next;
+         }
+         while( he != f->he );
+
+         glVertexPointer(  3, GL_FLOAT, 0, positions  );
+         glNormalPointer(     GL_FLOAT, 0, normals    );
+         glColorPointer (  3, GL_FLOAT, 0, colors     );
+         glDrawArrays(GL_POLYGON, 0, V);
+
+         delete[] positions;
+         delete[] normals;
+         delete[] colors;
+
+         /*if( renderQuasiConformal )
          {
             double value = faceQCDistortion( f );
             Vector color = qcColor( value );
@@ -460,10 +555,145 @@ namespace DDG
             he = he->next;
          }
          while( he != f->he );
-         glEnd();
+         glEnd();*/
       }
+
+      glDisableClientState(GL_COLOR_ARRAY);
+      glDisableClientState(GL_NORMAL_ARRAY);
+      glDisableClientState(GL_VERTEX_ARRAY);
    }
    
+   void Viewer::drawTriangles( void )
+   {
+      int F = 0;
+      for( FaceCIter f  = mesh.faces.begin(); f != mesh.faces.end(); f ++ )
+      {
+         if( not f->isBoundary() ) F++;
+      }
+
+      GLfloat * positions = new GLfloat[3*3*F];
+      GLfloat * normals   = new GLfloat[3*3*F];
+      GLfloat * colors    = new GLfloat[3*3*F];
+
+      double plainColor[3] = { 1., .5, .25 };
+      double normal2D[3] = { 0., 0., 1. };
+
+      glEnableClientState(GL_VERTEX_ARRAY);
+      glEnableClientState(GL_NORMAL_ARRAY);
+      glEnableClientState(GL_COLOR_ARRAY);
+
+      int offset = 0;
+
+      for( FaceCIter f  = mesh.faces.begin();
+          f != mesh.faces.end();
+          f ++ )
+      {
+         if( f->isBoundary() ) continue;
+
+         double qcValue = faceQCDistortion( f );
+         Vector qcColorVec = qcColor( qcValue );
+
+         HalfEdgeIter he = f->he;
+         do
+         {
+            const double * ptr;
+
+            ptr = renderQuasiConformal ? &qcColorVec[0] : plainColor;
+            std::copy(ptr, ptr + 3, colors + offset);
+
+            ptr = render3D ? &he->vertex->normal()[0] : normal2D;
+            std::copy(ptr, ptr + 3, normals + offset);
+
+            ptr = render3D ? &he->vertex->position[0] : &he->vertex->texture[0];
+            std::copy(ptr, ptr + 3, positions + offset);
+            
+            offset += 3;
+            he = he->next;
+         }
+         while( he != f->he );
+
+      }
+
+      glVertexPointer(  3, GL_FLOAT, 0, positions  );
+      glNormalPointer(     GL_FLOAT, 0, normals    );
+      glColorPointer (  3, GL_FLOAT, 0, colors     );
+
+      glDrawArrays(GL_TRIANGLES, 0, 3*F);
+
+      glDisableClientState(GL_COLOR_ARRAY);
+      glDisableClientState(GL_NORMAL_ARRAY);
+      glDisableClientState(GL_VERTEX_ARRAY);
+
+      delete[] positions;
+      delete[] normals;
+      delete[] colors;
+   }
+
+   void Viewer :: drawVectorField( void )
+   {
+      int F = 0;
+      for( FaceCIter f  = mesh.faces.begin(); f != mesh.faces.end(); f ++ )
+      {
+         if( not f->isBoundary() ) F++;
+      }
+
+      shader.disable();
+      glPushAttrib( GL_ALL_ATTRIB_BITS );
+      glDisable( GL_LIGHTING );
+      glEnable( GL_BLEND );
+      glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
+      glEnableClientState(GL_VERTEX_ARRAY);
+      GLfloat * positions = new GLfloat[3*2*F];
+      glEnableClientState(GL_COLOR_ARRAY);
+      GLfloat * colors    = new GLfloat[4*2*F];
+
+      GLfloat color[8] = { 1.0, 1.0, 1.0, 0.0, \
+                           0.0, 0.0, 0.0, 1.0 };
+
+      glLineWidth( 2. );
+
+      int offset = 0;
+      for( FaceCIter f  = mesh.faces.begin(); f != mesh.faces.end(); f ++ )
+      {
+         if( f->isBoundary() ) continue;
+
+         HalfEdgeCIter he = f->he;
+
+         Vector v0 = he->vertex->position;   he = he->next;
+         Vector v1 = he->vertex->position;   he = he->next;
+         Vector v2 = he->vertex->position;
+
+         double l0 = (v1-v2).norm();
+         double l1 = (v2-v0).norm();
+         double l2 = (v0-v1).norm();
+
+         Vector center = ( l0*v0 + l1*v1 + l2*v2 ) / ( l0 + l1 + l2 );
+         double radius = 2. * f->area() / ( l0 + l1 + l2 );
+
+         Vector p1 = center - 0.8 * radius * f->direction;
+         std::copy(&p1[0],    &p1[0] + 3, positions + 3 * offset);
+         std::copy(color,     color + 4,  colors +    4 * offset);
+         ++ offset;
+
+         Vector p2 = center + 0.8 * radius * f->direction;
+         std::copy(&p2[0],    &p2[0] + 3, positions + 3 * offset);
+         std::copy(color + 4, color + 8,  colors +    4 * offset);
+         ++ offset;
+      }
+
+      glVertexPointer(  3, GL_FLOAT, 0, positions  );
+      glColorPointer (  4, GL_FLOAT, 0, colors     );
+      glDrawArrays(GL_LINES, 0, 2*F);
+
+      delete[] positions;
+      glDisableClientState(GL_VERTEX_ARRAY);
+      delete[] colors;
+      glDisableClientState(GL_COLOR_ARRAY);
+
+      glPopAttrib();
+   }
+
    void Viewer :: drawWireframe( void )
    {
       shader.disable();
@@ -473,8 +703,37 @@ namespace DDG
       glColor4f( 0., 0., 0., 0.5 );
       glEnable( GL_BLEND );
       glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
+      const int E = mesh.edges.size();
+
+      GLfloat * positions = new GLfloat[3*2*E];
+
+      glEnableClientState(GL_VERTEX_ARRAY);
+
+      int offset = 0;
+      for( EdgeCIter e  = mesh.edges.begin();
+          e != mesh.edges.end();
+          e ++ )
+      {
+         const double * ptr;
+
+         ptr = &e->he->vertex->position[0];
+         std::copy(ptr, ptr + 3, positions + offset);
+         offset += 3;
+
+         ptr = &e->he->flip->vertex->position[0];
+         std::copy(ptr, ptr + 3, positions + offset);
+         offset += 3;
+      }
+
+      glVertexPointer(3, GL_FLOAT, 0, positions);
+      glDrawArrays(GL_LINES, 0, 2*E);
+
+      glDisableClientState(GL_VERTEX_ARRAY);
+
+      delete[] positions;
       
-      glBegin( GL_LINES );
+      /*glBegin( GL_LINES );
       for( EdgeCIter e  = mesh.edges.begin();
           e != mesh.edges.end();
           e ++ )
@@ -491,7 +750,7 @@ namespace DDG
             }
          
       }
-      glEnd();
+      glEnd();*/
       
       glPopAttrib();
    }
@@ -527,7 +786,7 @@ namespace DDG
       glPopAttrib();
    }
    
-   void Viewer :: drawVertices( void )
+   void Viewer::drawVertices( void )
    {
       for( VertexCIter v = mesh.vertices.begin();
           v != mesh.vertices.end();
@@ -547,54 +806,114 @@ namespace DDG
       }
    }
    
-   void Viewer :: drawSelectedVertices( void )
+   void Viewer::drawSelectedVertices( void )
    {
       shader.disable();
 
       glPushAttrib( GL_ALL_ATTRIB_BITS );
 
-      GLfloat  diffuse[4] = { 0.0, 0.0, 1.0, 1.0 };
-      GLfloat specular[4] = { 1.0, 1.0, 1.0, 1.0 };
-      GLfloat  ambient[4] = { 0.0, 0.0, 0.0, 1.0 };
-      
-      glMaterialfv( GL_FRONT_AND_BACK, GL_DIFFUSE,   diffuse  );
-      glMaterialfv( GL_FRONT_AND_BACK, GL_SPECULAR,  specular );
-      glMaterialfv( GL_FRONT_AND_BACK, GL_AMBIENT,   ambient  );
-      glMaterialf ( GL_FRONT_AND_BACK, GL_SHININESS, 16.      );
+      glEnable(GL_BLEND);
+      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-      for( VertexCIter v = mesh.vertices.begin();
-          v != mesh.vertices.end();
-          v ++ )
+      for( std::list<int>::const_iterator it = mesh.taggedVertices.cbegin();
+          it != mesh.taggedVertices.cend();
+          it ++ )
       {
-         if( v->tag ) 
+         const Vertex * v = &mesh.vertices[*it];
+
+         double radius = v->isIsolated() ? 0.02 : 100;
+
+         if ( not v->isIsolated() )
          {
-            double radius = v->isIsolated() ? 0.02 : 100;
-
-            if ( not v->isIsolated() )
+            HalfEdgeIter he = v->he;
+            do
             {
-               HalfEdgeIter he = v->he;
-               do
-               {
-                  double len = render3D ? \
-                     ( he->vertex->position - he->flip->vertex->position ).norm() : \
-                     ( he->vertex->texture - he->flip->vertex->texture ).norm();
+               double len = render3D ? \
+                  ( he->vertex->position - he->flip->vertex->position ).norm() : \
+                  ( he->vertex->texture - he->flip->vertex->texture ).norm();
 
-                  if ( radius > len ) radius = len;
-                  he = he->flip->next;
-               } while ( he != v->he );
+               if ( radius > len ) radius = len;
+               he = he->flip->next;
+            } while ( he != v->he );
 
-               radius *= 0.5;
-            }
-
-            const double * vecPtr = render3D ? &v->position[0] : &v->texture[0];
-
-            glMatrixMode( GL_MODELVIEW );
-            glPushMatrix();
-            glTranslatef( vecPtr[0], vecPtr[1], vecPtr[2] );
-            glutSolidSphere( radius, 16, 16 );
-            glPopMatrix();
+            radius *= 0.5;
          }
+
+         if ( v->winding == 0 )
+         {
+            GLfloat  diffuse[4] = { 1.0, 1.0, 1.0, 0.5 };
+            glMaterialfv( GL_FRONT_AND_BACK, GL_DIFFUSE,   diffuse  );
+         }
+         else if ( v->winding > 0 )
+         {
+            GLfloat  diffuse[4] = { 1.0, 0.0, 0.0, 0.5 };
+            glMaterialfv( GL_FRONT_AND_BACK, GL_DIFFUSE,   diffuse  );
+         }
+         else
+         {
+            GLfloat  diffuse[4] = { 0.0, 0.0, 1.0, 0.5 };
+            glMaterialfv( GL_FRONT_AND_BACK, GL_DIFFUSE,   diffuse  );
+         }
+
+         GLfloat specular[4] = { 1.0, 1.0, 1.0, 0.5 };
+         GLfloat  ambient[4] = { 0.0, 0.0, 0.0, 1.0 };
+         glMaterialfv( GL_FRONT_AND_BACK, GL_SPECULAR,  specular );
+         glMaterialfv( GL_FRONT_AND_BACK, GL_AMBIENT,   ambient  );
+         glMaterialf ( GL_FRONT_AND_BACK, GL_SHININESS, 16.      );
+
+         const double * vecPtr = render3D ? &v->position[0] : &v->texture[0];
+
+         glMatrixMode( GL_MODELVIEW );
+         glPushMatrix();
+         glTranslatef( vecPtr[0], vecPtr[1], vecPtr[2] );
+         glutSolidSphere( radius, 16, 16 );
+
+         glPopMatrix();
       }
+
+      for( std::list<int>::const_iterator it = mesh.hledVertices.cbegin();
+          it != mesh.hledVertices.cend();
+          it ++ )
+      {
+         const Vertex * v = &mesh.vertices[*it];
+
+         double radius = v->isIsolated() ? 0.02 : 100;
+
+         if ( not v->isIsolated() )
+         {
+            HalfEdgeIter he = v->he;
+            do
+            {
+               double len = render3D ? \
+                  ( he->vertex->position - he->flip->vertex->position ).norm() : \
+                  ( he->vertex->texture - he->flip->vertex->texture ).norm();
+
+               if ( radius > len ) radius = len;
+               he = he->flip->next;
+            } while ( he != v->he );
+
+            radius *= 0.5;
+         }
+
+         GLfloat  diffuseW[4] = { 1.0, 1.0, 1.0, 0.2 };
+         GLfloat specularW[4] = { 0.0, 0.0, 0.0, 0.2 };
+         glMaterialfv( GL_FRONT_AND_BACK, GL_DIFFUSE,   diffuseW  );
+         glMaterialfv( GL_FRONT_AND_BACK, GL_SPECULAR,  specularW );
+         
+         const double * vecPtr = render3D ? &v->position[0] : &v->texture[0];
+
+         glMatrixMode( GL_MODELVIEW );
+         glPushMatrix();
+         glTranslatef( vecPtr[0], vecPtr[1], vecPtr[2] );
+         if ( v->winding == 0 )
+            glutSolidSphere( 1.1 * radius, 16, 16 );
+         else
+            glutSolidSphere( (0.1+abs(v->winding)) * radius, 16, 16 );
+
+         glPopMatrix();
+      }
+
+      glDisable(GL_BLEND);
 
       glPopAttrib();
 
@@ -629,11 +948,13 @@ namespace DDG
       glPopAttrib();*/
    }
 
-   void Viewer :: pickVertex(int x, int y)
+   int Viewer::getMouseVertexID(int x, int y)
    {
+      const int NOID = -1;
+
       int width  = glutGet(GLUT_WINDOW_WIDTH );
       int height = glutGet(GLUT_WINDOW_HEIGHT);
-      if( x < 0 || x >= width || y < 0 || y >= height ) return;
+      if( x < 0 || x >= width || y < 0 || y >= height ) return NOID;
       
       int bufSize = mesh.vertices.size();
       GLuint* buf = new GLuint[bufSize];
@@ -665,7 +986,7 @@ namespace DDG
       glMatrixMode(GL_MODELVIEW);
       long hits = glRenderMode(GL_RENDER);
       
-      int index = -1;
+      int index = NOID;
       double min_z = 1.0e100;
       for( long i = 0; i < hits; ++i )
       {
@@ -678,11 +999,51 @@ namespace DDG
       }
       delete[] buf;
 
+      return index;
+   }
+
+   void Viewer::pickVertex( int x, int y ) 
+   {
+      int index = getMouseVertexID( x, y );
+
       if (index >= 0)
       {
-         mesh.vertices[index].toggleTag();
+         mesh.toggleVertexTag( index );
          updateDisplayList();
       }
+   }
+
+   void Viewer::hlVertex( int x, int y ) 
+   {
+      int index = getMouseVertexID( x, y );
+
+      if (index >= 0)
+      {
+         mesh.toggleVertexHL( index );
+         updateDisplayList();
+      }
+   }
+
+   void Viewer::mIncWinding( void )
+   {
+      for ( std::list<int>::const_iterator it = mesh.hledVertices.cbegin(); 
+            it != mesh.hledVertices.cend(); it++ )
+      {
+         ++ mesh.vertices[*it].winding;
+      }
+
+      updateDisplayList();
+   }
+
+   void Viewer::mDecWinding( void )
+   {
+      for ( std::list<int>::const_iterator it = mesh.hledVertices.cbegin(); 
+            it != mesh.hledVertices.cend(); it++ )
+      {
+         -- mesh.vertices[*it].winding;
+      }
+      
+      updateDisplayList();
    }
 }
 

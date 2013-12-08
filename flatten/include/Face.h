@@ -11,6 +11,7 @@
 #define DDG_FACE_H
 
 #include "Types.h"
+#include "Vector.h"
 
 namespace DDG
 {
@@ -22,8 +23,10 @@ namespace DDG
       
       int index;
       // unique integer ID in the range 0, ..., nFaces-1
+
+      Vector direction;
       
-      Face() : index(0) { }
+      Face() : index(0), direction(0.,0.,0.) { }
       
       bool isBoundary( void ) const;
       // returns true if this face corresponds to a

@@ -200,5 +200,34 @@ namespace DDG
       }
       return sum / edges.size();
    }
+
+   void Mesh::toggleVertexTag( int index ) 
+   {
+      vertices[index].toggleTag();
+
+      if ( vertices[index].tag )
+      {
+         taggedVertices.push_back( index );
+         toggleVertexHL( index );
+      }
+      else
+      {
+         taggedVertices.remove( index );
+         hledVertices.remove( index );
+      }
+   }
+
+   void Mesh::toggleVertexHL( int index ) 
+   {
+      if ( vertices[index].tag )
+      {
+         if ( hledVertices.size() == 0 )
+            hledVertices.push_back( index );
+         else if ( hledVertices.front() == index )
+            hledVertices.clear();
+         else
+            hledVertices.front() = index;
+      }
+   }
 }
 

@@ -43,6 +43,7 @@
 #define DDG_MESH_H
 
 #include <vector>
+#include <list>
 #include <string>
 
 #include "HalfEdge.h"
@@ -93,6 +94,12 @@ namespace DDG
       std::vector<Face>     faces;
       std::vector<Face>     boundaries;
       // storage for mesh elements
+
+      void toggleVertexTag( int );
+      void toggleVertexHL( int );
+
+      std::list<int> taggedVertices;
+      std::list<int> hledVertices;
       
    protected:
       std::string inputFilename;

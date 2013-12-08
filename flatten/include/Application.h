@@ -19,12 +19,17 @@ namespace DDG
    {
    public:
       void run(Mesh& mesh);
+      void flatten(Mesh& mesh);
+      void designVectorField(Mesh& mesh);
       
    protected:
       void buildEnergy(const Mesh& mesh, SparseMatrix<Complex>& A) const;
       void assignSolution(const DenseMatrix<Complex>& x, Mesh& mesh);
       void normalizeMesh(const double scale, Mesh& mesh);
 
+      void balanceWinding(Mesh& mesh);
+      void solveForConnection(Mesh& mesh);
+      void transportVectorField(Mesh& mesh);
    };
 }
 

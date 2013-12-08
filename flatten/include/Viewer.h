@@ -48,10 +48,15 @@ namespace DDG
       static void mExit( void );
       static void mWireframe( void );
       static void mRender3D( void );
+      static void mTaggedVertices( void );
       static void mQuasiConformal( void );
+      static void mVectorField( void );
       static void mZoomIn( void );
       static void mZoomOut( void );
       static void mScreenshot( void );
+
+      static void mIncWinding( void );
+      static void mDecWinding( void );
       
       // unique identifiers for menus
       enum
@@ -62,10 +67,15 @@ namespace DDG
          menuExit,
          menuWireframe,
          menuRender3D,
+         menuTaggedVertices,
          menuQuasiConformal,
+         menuVectorField,
          menuZoomIn,
          menuZoomOut,
-         menuScreenshot
+         menuScreenshot,
+
+         menuIncWinding,
+         menuDecWinding
       };
       
       // draw routines
@@ -76,11 +86,16 @@ namespace DDG
       static void updateDisplayList( void );
       static void drawScene( void );
       static void drawPolygons( void );
+      static void drawTriangles( void );
+      static void drawVectorField( void );
       static void drawWireframe( void );
       static void drawVertices( void );
       static void drawSelectedVertices( void );
       static void drawIsolatedVertices( void );
+
+      static int getMouseVertexID(int x, int y);
       static void pickVertex(int x, int y);
+      static void hlVertex(int x, int y);
       
       static void storeViewerState( void );
       static void restoreViewerState( void );
@@ -91,6 +106,12 @@ namespace DDG
 
       static bool render3D;
       // draw 3D or 2D
+
+      static bool renderTaggedVertices;
+      // draw tagged vertices
+
+      static bool renderVectorField;
+      // draw vector field
 
       static bool renderWireframe;
       // draw wireframe
@@ -103,7 +124,7 @@ namespace DDG
       
       static Shader shader;
       // shader used to determine appearance of surface
-      
+
    };
 
    // methods to viz quasi conformal error

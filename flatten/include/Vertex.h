@@ -36,7 +36,9 @@ namespace DDG
       int winding;
       // winding number of the vortex
 
-      Vertex() : index(0), tag(false), winding(0) { }
+      double potential;
+
+      Vertex() : index(0), tag(false), winding(0), potential(0.) { }
       
       double area( void ) const;
       // returns the barycentric area associated with this vertex
