@@ -33,7 +33,10 @@ namespace DDG
       bool tag;
       // true if vertex is selected by the user; false otherwise
 
-      Vertex() : index(0), tag(false) { }
+      int winding;
+      // winding number of the vortex
+
+      Vertex() : index(0), tag(false), winding(0) { }
       
       double area( void ) const;
       // returns the barycentric area associated with this vertex

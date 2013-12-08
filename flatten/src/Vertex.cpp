@@ -65,6 +65,7 @@ namespace DDG
    
    void Vertex :: toggleTag()
    {
+      if ( tag ) winding = 0;
       tag = !tag;
    }
 }
